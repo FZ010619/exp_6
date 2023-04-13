@@ -1,0 +1,343 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>
+      National Industrial Structure Composition Chart 
+    </title>
+    <!-- title 就是浏览器状态栏显示的. -->
+
+    <!-- 引入 ArcGIS API for JavaScript -->
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.26/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.26/"></script>
+
+    <!-- 样式表 -->
+    <style>
+      html,
+      body {
+      display:flex;
+      flex-direction:column;
+      height: 100vh;/*高度占满全部视窗*/
+      margin: 0;
+      }
+      
+      #header {
+      height: 70px;
+			background-image: url("https://i.328888.xyz/2023/04/09/iRPxWA.png");
+			background-size: cover;
+			background-position: center;
+      text-align: center;
+      line-height: 50px;
+      } 
+      
+      #viewDiv {
+        flex: 1;
+      }
+      
+      #srDiv{
+        height: 5px;
+        padding: 10px;
+        margin-top: auto;
+      }
+
+      queryDiv{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+      }
+
+
+      .query-options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+    </style>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/portal/Portal",
+        "esri/widgets/BasemapGallery",
+        "esri/widgets/BasemapGallery/support/PortalBasemapsSource",
+        "esri/widgets/Expand",
+        "esri/layers/FeatureLayer",
+        "esri/widgets/Legend",
+        "esri/widgets/LayerList",
+        "esri/widgets/ScaleBar",
+        "esri/widgets/Search",
+        "esri/Graphic"
+      ], function (
+        Map,
+        MapView,
+        Portal,
+        BasemapGallery,
+        PortalBasemapsSource,
+        Expand,
+        FeatureLayer, 
+        Legend,
+        LayerList,
+        ScaleBar,
+        Search,
+        Graphic
+      ) {
+        const portal = new Portal();
+
+        // source for basemaps from a portal group
+        // containing basemaps with different projections
+        const source = new PortalBasemapsSource({
+          portal,
+          query: {
+            id: "bdb9d65e0b5c480c8dcc6916e7f4e099"
+          }
+        });
+
+        const map = new Map({
+          basemap: {
+            portalItem: {
+              id: "8dda0e7b5e2d4fafa80132d59122268c"  // WGS84 Streets Vector webmap
+            }
+          }
+        });
+
+      // 居中到太原市
+      const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          autoOpenEnabled: false,
+          dockEnabled: true,
+          dockOptions: {
+            buttonEnabled: false,
+            breakpoint: false,
+            position: "bottom-right"
+          },
+          center: [112.562398, 37.873532],
+          zoom: 12,
+          constraints: {
+            snapToZoom: false
+          }
+      });
+
+        // 创建比例尺组件
+      var scaleBar = new ScaleBar({
+          view: view,
+          unit: "metric",
+          style: "ruler",
+          color: "#000",
+          backgroundColor: "#fff"
+      });
+      view.ui.add(scaleBar, "bottom-left");
+
+      //位置查询
+      const searchWidget = new Search({
+        view: view
+      });
+      // Add the search widget to the top right corner of the view
+      view.ui.add(searchWidget, {
+        position: "top-right"
+      });
+
+        //底图库
+      const bgExpand = new Expand({
+          view,
+          content: new BasemapGallery({ source, view }),
+          expandIconClass: "esri-icon-basemap"
+      });
+      view.ui.add(bgExpand, "top-right");
+      view.watch("spatialReference", () => {
+        document.getElementById(
+          "srDiv"
+        ).innerHTML = `view.spatialReference.wkid = <b>${view.spatialReference.wkid}</b>`;
+      });
+
+        // 添加图例显示
+      const layerList = new LayerList({
+        view: view,
+        listItemCreatedFunction: function (event) {
+          const item = event.item;
+          item.title = item.layer.title;
+          // 将图层符号设置为可见性控件
+          item.panel = {
+            content: "legend",
+            open: true
+          };
+          // 添加一个备选项，以在复选框旁显示图层名称
+          item.panel.className = "esri-legend__layer-row";
+          }
+        });
+        view.ui.add(layerList, "bottom-right");
+
+
+      //创建可最小化的图层列表
+      const legend = new Legend({
+        view: view,
+        container: document.createElement("div")
+      });
+
+      const expand = new Expand({
+        view: view,
+        content: legend.container,
+        expandIconClass: "esri-icon-layers",
+        group: "top-right"
+      });
+      view.ui.add(expand, "top-right");
+
+
+      const queryBtn = document.getElementById("queryBtn");
+      const queryTypeInput = document.getElementById("queryType");
+      const queryAreaInput = document.getElementById("queryArea");
+
+      // 获取下拉框元素
+      var queryTypeSelect = document.getElementById("queryType");
+      var queryAreaSelect = document.getElementById("queryArea");
+
+      // 设置默认选项
+      queryTypeSelect.selectedIndex = 0;
+      queryAreaSelect.selectedIndex = 0;
+
+      document.addEventListener("DOMContentLoaded", function() {
+      const queryBtn = document.getElementById("queryBtn");
+      queryBtn.addEventListener("click", performQuery);
+    });
+
+    function performQuery() {
+      const queryType = document.getElementById("queryType").value;
+      const queryArea = document.getElementById("queryArea").value;
+      
+      // 调用PointMap查询函数，按照"事件类"和"区域"进行查询，并返回结果数目。
+      const resultCount = PointMap.query(queryType, queryArea);
+      alert(`查询到${resultCount}条记录`);
+    }
+
+
+        // 添加图层,实现显示地图要素字段信息
+        const PointMap_police = new FeatureLayer({
+          url:"https://www.geosceneonline.cn/server/rest/services/Hosted/Police/FeatureServer/0",
+          popupTemplate: {
+            title: "太原市警察局",
+            lastEditInfoEnabled: false,
+            actions: [
+              {
+                id: "null",
+                image:
+                  "https://i.328888.xyz/2023/04/09/icrhbc.png",
+                title: "派出所|警务室"
+              }
+            ],
+            content: [
+              {
+                type: "fields",
+                fieldInfos: [
+                  {
+                    fieldName: "name",
+                    label:"派出所名称:"
+                  },
+                  {
+                    fieldName: "tel",
+                    label: "电话:"
+                  },
+                  {
+                    fieldName: "address",
+                    label: "地址:"
+                  }
+                ]
+              }
+            ]
+          }
+        })
+          const PointMap = new FeatureLayer({
+          url: "https://www.geosceneonline.cn/server/rest/services/Hosted/警情_surface_Point/FeatureServer/0",
+          popupTemplate: {
+            title: "太原市XX年警情基本情况",
+            lastEditInfoEnabled: false,
+            actions: [
+              {
+                id: "null",
+                image:
+                  "https://i.328888.xyz/2023/04/05/i8ScAk.png",
+                title: "警务"
+              }
+            ],
+            content: [
+              {
+                type: "fields",
+                fieldInfos: [
+                  {
+                    fieldName: "城市",
+                    label:"报警城市:"
+                  },
+                  {
+                    fieldName: "用户名",
+                    label: "报警人:"
+                  },
+                  {
+                    fieldName: "手机号",
+                    label: "报警人联系方式:"
+                  },
+                  {
+                    fieldName: "时间",
+                    label: "报警时间:"
+                  },
+                  {
+                    fieldName: "事件类",
+                    label: "事件类型:"
+                  },
+                  {
+                    fieldName: "事件简",
+                    label: "事件简介:"
+                  },
+                ]
+              }
+            ]
+          }
+        });
+        const SurfaceMap = new FeatureLayer({
+          url: "https://www.geosceneonline.cn/server/rest/services/Hosted/警情_surface_Point/FeatureServer/1",
+        });
+        map.add(SurfaceMap,0);
+        map.add(PointMap,1);
+        map.add(PointMap_police,2);
+      });
+    </script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>太原市XX年警情基本情况</h1>
+      <div id="srDiv" class="esri-widget"></div>
+    </div>
+    <div id="viewDiv"></div>
+    <div id="queryDiv" class="esri-widget">
+      <select id="queryType">
+        <option value="" disabled selected>查询事件类型</option>
+        <option value="交通事故报警">交通事故报警</option>
+        <option value="公共秩序报警">公共秩序报警</option>
+        <option value="医疗急救报警">医疗急救报警</option>
+        <option value="环境污染报警">环境污染报警</option>
+        <option value="突发事件报警">突发事件报警</option>
+        <option value="罪案报警">罪案报警</option>
+        <option value="资源调度报警">资源调度报警</option>
+      </select>
+      <select id="queryArea">
+        <option value="" disabled selected>查询事件区域</option>
+        <option value="小店区">小店区</option>
+        <option value="迎泽区">迎泽区</option>
+        <option value="杏花岭区">杏花岭区</option>
+        <option value="尖草坪区">尖草坪区</option>
+        <option value="万柏林区">万柏林区</option>
+        <option value="晋源区">晋源区</option>
+      </select>
+      <button id="queryBtn">查询</button>
+    </div>
+    </div>
+  </body>
+</html>
+
+
